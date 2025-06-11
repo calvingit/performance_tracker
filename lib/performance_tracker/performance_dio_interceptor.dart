@@ -201,31 +201,3 @@ class PerformanceDioInterceptor extends Interceptor {
     _requestTimers.clear();
   }
 }
-
-/// Dio性能监控扩展
-extension DioPerformanceExtension on Dio {
-  /// 添加性能监控拦截器
-  ///
-  /// * [enableDetailedLogging] 是否启用详细日志
-  /// * [recordRequestSize] 是否记录请求体大小
-  /// * [recordResponseSize] 是否记录响应体大小
-  /// * [maxUrlLength] 最大记录的URL长度
-  void addPerformanceInterceptor({
-    bool enableDetailedLogging = false,
-    bool recordRequestSize = true,
-    bool recordResponseSize = true,
-    int maxUrlLength = 200,
-  }) {
-    interceptors.add(PerformanceDioInterceptor(
-      enableDetailedLogging: enableDetailedLogging,
-      recordRequestSize: recordRequestSize,
-      recordResponseSize: recordResponseSize,
-      maxUrlLength: maxUrlLength,
-    ));
-  }
-
-  /// 移除性能监控拦截器
-  void removePerformanceInterceptor() {
-    interceptors.removeWhere((interceptor) => interceptor is PerformanceDioInterceptor);
-  }
-}

@@ -69,12 +69,12 @@ class PerformanceTrackerExample {
     _dio = Dio();
 
     // 添加性能监控拦截器
-    _dio.addPerformanceInterceptor(
+    _dio.interceptors.add(PerformanceDioInterceptor(
       enableDetailedLogging: true,
       recordRequestSize: true,
       recordResponseSize: true,
       maxUrlLength: 100,
-    );
+    ));
 
     logger.info('网络监控初始化完成');
   }
@@ -213,7 +213,7 @@ class PerformanceTrackerExample {
       'CPU使用率',
       _random.nextDouble() * 100,
       additionalData: {
-              'unit': 'percentage',
+        'unit': 'percentage',
         'cores': 4,
       },
     );

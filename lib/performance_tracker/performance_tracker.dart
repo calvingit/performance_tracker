@@ -60,6 +60,7 @@ class PerformanceTracker {
     }
   }
 
+  /// 设置最大记录数量，默认1000
   void setMaxRecords(int maxRecords) {
     _maxRecords = maxRecords;
   }

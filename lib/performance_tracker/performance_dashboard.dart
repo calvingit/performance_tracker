@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'performance_tracker.dart';
@@ -32,17 +33,51 @@ class _PerformanceDashboardState extends State<PerformanceDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
   bool _isRealTimeMode = true;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _startRealTimeUpdates();
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _tabController.dispose();
     super.dispose();
+  }
+
+  /// 启动实时更新
+  void _startRealTimeUpdates() {
+    if (_isRealTimeMode) {
+      _refreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (mounted) {
+          setState(() {
+            // 触发界面刷新
+          });
+        }
+      });
+    }
+  }
+
+  /// 停止实时更新
+  void _stopRealTimeUpdates() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+  }
+
+  /// 切换实时模式
+  void _toggleRealTimeMode() {
+    setState(() {
+      _isRealTimeMode = !_isRealTimeMode;
+      if (_isRealTimeMode) {
+        _startRealTimeUpdates();
+      } else {
+        _stopRealTimeUpdates();
+      }
+    });
   }
 
   @override
@@ -53,11 +88,7 @@ class _PerformanceDashboardState extends State<PerformanceDashboard>
         actions: [
           IconButton(
             icon: Icon(_isRealTimeMode ? Icons.pause : Icons.play_arrow),
-            onPressed: () {
-              setState(() {
-                _isRealTimeMode = !_isRealTimeMode;
-              });
-            },
+            onPressed: _toggleRealTimeMode,
             tooltip: _isRealTimeMode ? '暂停实时更新' : '开启实时更新',
           ),
           IconButton(
@@ -95,31 +126,24 @@ class _PerformanceDashboardState extends State<PerformanceDashboard>
 
   /// 构建概览标签页
   Widget _buildOverviewTab() {
-    return StreamBuilder<void>(
-      stream: _isRealTimeMode
-          ? Stream.periodic(const Duration(seconds: 1))
-          : const Stream.empty(),
-      builder: (context, snapshot) {
-        final stats = PerformanceTracker.instance.getStats();
-        final uiStats = PerformanceUIMonitor.instance.getCurrentFrameStats();
-        final records = PerformanceTracker.instance.records;
+    final stats = PerformanceTracker.instance.getStats();
+    final uiStats = PerformanceUIMonitor.instance.getCurrentFrameStats();
+    final records = PerformanceTracker.instance.records;
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildStatusCard(),
-              const SizedBox(height: 16),
-              _buildStatsGrid(stats, uiStats),
-              const SizedBox(height: 16),
-              _buildRecentActivityCard(records),
-              const SizedBox(height: 16),
-              _buildPerformanceTrendChart(records),
-            ],
-          ),
-        );
-      },
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildStatusCard(),
+          const SizedBox(height: 16),
+          _buildStatsGrid(stats, uiStats),
+          const SizedBox(height: 16),
+          _buildRecentActivityCard(records),
+          const SizedBox(height: 16),
+          _buildPerformanceTrendChart(records),
+        ],
+      ),
     );
   }
 
@@ -202,7 +226,7 @@ class _PerformanceDashboardState extends State<PerformanceDashboard>
         ),
         _buildStatCard(
           '当前帧率',
-          '${(uiStats['fps'] as double).toStringAsFixed(1)} FPS',
+          '${(uiStats['displayFps'] as double?)?.toStringAsFixed(1) ?? ''} FPS',
           Icons.speed,
           Colors.green,
         ),
@@ -220,12 +244,12 @@ class _PerformanceDashboardState extends State<PerformanceDashboard>
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
               value,
               style: TextStyle(
@@ -323,28 +347,21 @@ class _PerformanceDashboardState extends State<PerformanceDashboard>
 
   /// 构建网络标签页
   Widget _buildNetworkTab() {
-    return StreamBuilder<void>(
-      stream: _isRealTimeMode
-          ? Stream.periodic(const Duration(seconds: 2))
-          : const Stream.empty(),
-      builder: (context, snapshot) {
-        final networkRecords = PerformanceTracker.instance
-            .getRecordsByType(PerformanceType.networkRequest);
-        final networkStats = PerformanceTracker.instance
-            .getStats(PerformanceType.networkRequest);
+    final networkRecords = PerformanceTracker.instance
+        .getRecordsByType(PerformanceType.networkRequest);
+    final networkStats =
+        PerformanceTracker.instance.getStats(PerformanceType.networkRequest);
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildNetworkStatsCard(networkStats),
-              const SizedBox(height: 16),
-              _buildNetworkRequestsList(networkRecords),
-            ],
-          ),
-        );
-      },
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildNetworkStatsCard(networkStats),
+          const SizedBox(height: 16),
+          _buildNetworkRequestsList(networkRecords),
+        ],
+      ),
     );
   }
 
@@ -493,37 +510,30 @@ class _PerformanceDashboardState extends State<PerformanceDashboard>
 
   /// 构建UI性能标签页
   Widget _buildUIPerformanceTab() {
-    return StreamBuilder<void>(
-      stream: _isRealTimeMode
-          ? Stream.periodic(const Duration(seconds: 1))
-          : const Stream.empty(),
-      builder: (context, snapshot) {
-        final uiStats = PerformanceUIMonitor.instance.getCurrentFrameStats();
-        final frameRecords = PerformanceTracker.instance
-            .getRecordsByType(PerformanceType.frameRate);
-        final jankRecords = PerformanceTracker.instance
-            .getRecordsByType(PerformanceType.jankDetection);
+    final uiStats = PerformanceUIMonitor.instance.getCurrentFrameStats();
+    final frameRecords =
+        PerformanceTracker.instance.getRecordsByType(PerformanceType.frameRate);
+    final jankRecords = PerformanceTracker.instance
+        .getRecordsByType(PerformanceType.jankDetection);
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildUIStatsCard(uiStats),
-              const SizedBox(height: 16),
-              _buildFrameRateChart(frameRecords),
-              const SizedBox(height: 16),
-              _buildJankDetectionCard(jankRecords),
-            ],
-          ),
-        );
-      },
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildUIStatsCard(uiStats),
+          const SizedBox(height: 16),
+          _buildFrameRateChart(frameRecords),
+          const SizedBox(height: 16),
+          _buildJankDetectionCard(jankRecords),
+        ],
+      ),
     );
   }
 
   /// 构建UI统计卡片
   Widget _buildUIStatsCard(Map<String, dynamic> stats) {
-    final fps = stats['fps'] as double;
+    final fps = stats['displayFps'] as double;
     final jankPercentage = stats['jankPercentage'] as double;
     final totalFrames = stats['totalFrames'] as int;
 
@@ -678,45 +688,39 @@ class _PerformanceDashboardState extends State<PerformanceDashboard>
 
   /// 构建详细数据标签页
   Widget _buildDetailedDataTab() {
-    return StreamBuilder<void>(
-      stream: _isRealTimeMode
-          ? Stream.periodic(const Duration(seconds: 2))
-          : const Stream.empty(),
-      builder: (context, snapshot) {
-        final records = PerformanceTracker.instance.records;
+    final records = PerformanceTracker.instance.records;
 
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '共 ${records.length} 条记录',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _copyAllData,
-                    icon: const Icon(Icons.copy),
-                    label: const Text('复制数据'),
-                  ),
-                ],
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '共 ${records.length} 条记录',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: records.length,
-                itemBuilder: (context, index) {
-                  final record = records[records.length - 1 - index]; // 倒序显示
-                  return _buildDetailedRecordItem(record);
-                },
+              ElevatedButton.icon(
+                onPressed: _copyAllData,
+                icon: const Icon(Icons.copy),
+                label: const Text('复制数据'),
               ),
-            ),
-          ],
-        );
-      },
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: records.length,
+            itemBuilder: (context, index) {
+              final record = records[records.length - 1 - index]; // 倒序显示
+              return _buildDetailedRecordItem(record);
+            },
+          ),
+        ),
+      ],
     );
   }
 

@@ -52,7 +52,7 @@ import 'package:your_app/utils/performance_ui_monitor.dart';
 import 'package:your_app/utils/performance_dashboard.dart';
 
 // 启用性能监控
-PerformanceTracker.instance.enable();
+PerformanceTracker.instance.setEnabled(true);
 
 // 设置最大记录数（可选）
 PerformanceTracker.instance.setMaxRecords(1000);
@@ -65,15 +65,6 @@ PerformanceUIMonitor.instance.startMonitoring();
 
 ```dart
 // 创建Dio实例并添加性能监控拦截器
-final dio = Dio();
-dio.addPerformanceInterceptor(
-  enableDetailedLogging: true,
-  enableRequestBodyLogging: true,
-  enableResponseBodyLogging: true,
-  maxUrlLength: 100,
-);
-
-// 或者手动添加拦截器
 dio.interceptors.add(PerformanceDioInterceptor(
   enableDetailedLogging: true,
 ));
@@ -116,14 +107,9 @@ PerformanceMonitorWidget(
 
 ### 4. 网络请求监控
 
-#### 自动监控（推荐）
+配置了拦截器的Dio实例，所有请求会自动监控
 
-```dart
-// 使用配置了拦截器的Dio实例，所有请求会自动监控
-final response = await dio.get('https://api.example.com/data');
-```
-
-#### 手动监控
+手动监控:
 
 ```dart
 // 开始网络请求计时
@@ -274,12 +260,12 @@ PerformanceTracker.instance.disable();
 
 ```dart
 // 生产环境配置
-dio.addPerformanceInterceptor(
+dio.interceptors.add(PerformanceDioInterceptor(
   enableDetailedLogging: false,
   enableRequestBodyLogging: false,
   enableResponseBodyLogging: false,
   maxUrlLength: 50,
-);
+));
 ```
 
 ### 3. UI 性能监控
@@ -359,17 +345,16 @@ dev_dependencies:
 
 ## 文件结构
 
-```
-lib/utils/
+```bash
+lib/performance_tracker/
 ├── performance_tracker.dart              # 核心性能追踪器
 ├── performance_dio_interceptor.dart      # Dio网络监控拦截器
 ├── performance_ui_monitor.dart           # UI性能监控器
-├── performance_dashboard.dart            # 性能数据可视化仪表板
-├── performance_tracker_example.dart      # 使用示例
-└── performance_tracker_readme.md         # 本文档
-
-test/utils/
-└── performance_tracker_test.dart         # 单元测试
+└── performance_dashboard.dart            # 性能数据可视化仪表板
+test/
+   └── performance_tracker_test.dart      # 单元测试
+example/
+   └── performance_tracker_example.dart   # 示例应用
 ```
 
 ## 完整示例
